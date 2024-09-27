@@ -5,10 +5,12 @@ import AddJob from "./pages/AddJob";
 import Navbar from "./components/Navbar";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import { Toaster, toast } from "sonner";
 
 function App() {
   return (
     <Router>
+      <Toaster richColors />
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />

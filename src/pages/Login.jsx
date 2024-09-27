@@ -1,16 +1,61 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from "../../constants";
+import { toast } from "sonner";
 
 const Login = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (isLoggedIn) {
+      navigate("/");
+    }
+  }, [navigate]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Add your login logic here (e.g., API call)
-    console.log({ email, password });
-    navigate("/"); // Redirect to home after login
+
+    const formData = {
+      email,
+      password,
+    };
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${APIURL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("isLoggedIn", "true");
+
+        toast.success(data.msg);
+        window.location.replace("/");
+        // navigate("/");
+      } else {
+        toast.error(data.msg);
+      }
+
+      console.log(data);
+    } catch (error) {
+      console.error("An error occurred during login:", error);
+      toast.error("An error occurred. Please try again.");
+    }
+
+    setIsLoading(false);
   };
 
   return (
@@ -38,10 +83,11 @@ const Login = () => {
           />
         </div>
         <button
+          disabled={isLoading}
           type="submit"
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded"
         >
-          Login
+          {isLoading ? "Please wait..." : "Login"}
         </button>
       </form>
     </div>
