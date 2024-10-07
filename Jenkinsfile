@@ -7,6 +7,10 @@ pipeline {
   agent any 
 	environment {
 		IMAGE_NAME = 'cjchika/frontend-react'
+		SONAR_TOKEN = "${env.SONAR_AUTH}"
+		SONAR_SCANNER = 'sonarscanner'
+		SONAR_HOST_URL = 'http://52.90.194.8'
+		SONAR_PROJECT_KEY = 'frontend-react'
 	}
 
 	stages {
@@ -15,6 +19,38 @@ pipeline {
 				git branch: 'jenkins-ci', 
 				credentialsId: 'github-pat', 
 				url: 'https://github.com/cjchika/worrk-fe.git'
+			}
+		}
+		stage('Test SonarQube Scanner') {
+			steps {
+				sh 'which sonar-scanner'
+			}
+		}
+		stage('SonarQube Analysis'){
+			steps{
+				script{
+					withSonarQubeEnv('sonarserver'){
+						sh '''
+						sonar-scanner \
+						-Dsonar.projectKey=$SONAR_PROJECT_KEY \
+						-Dsonar.sources=. \
+						-Dsonar.host.url=$SONAR_HOST_URL \
+						-Dsonar.login=$SONAR_TOKEN
+					'''
+					}
+				}
+			}
+		}
+		stage('Check Quality Gate'){
+			steps{
+				script{
+					timeout(time: 30, unit: 'MINUTES') {
+						def qualityGate = waitForQualityGate() 
+						if(qualityGate.status != 'OK'){
+							error "SonarQube Quality Gate failed: ${qualityGate.status}"
+						}
+					}
+				}
 			}
 		}
 		stage('Build Frontend Docker Image') {
