@@ -1,38 +1,17 @@
 version: 0.2
 
-env:
-  variables:
-    AWS_DEFAULT_REGION: 'us-east-1'
-    IMAGE_NAME: 'backend-node'
-  parameter-store:
-    Account_ID: Account_ID
-
 phases:
   install:
     commands:
-      - echo "Installing dependencies for Docker build..."
-      - apt-get update -y
-      - apt-get install -y docker
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $Account_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      # - $(aws ecr get-login-password --no-include-email --region $AWS_DEFAULT_REGION)
-
-  pre_build:
-    commands:
-      - echo "Authenticating with Docker Hub..."
-      - echo "$DOCKERHUB_USERNAME" | docker login --username "$DOCKERHUB_USERNAME" --password "$DOCKERHUB_PASSWORD"
+      - echo "Installing dependencies..."
+      - yarn install
 
   build:
     commands:
-      - echo "Building Docker image..."
-      - docker build -t $IMAGE_NAME .
-      - docker tag $IMAGE_NAME:latest $Account_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
-
-  post_build:
-    commands:
-      - echo "Pushing Docker image to ECR..."
-      - docker push $Account_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
+      - echo "Building the React-Vite frontend app..."
+      - yarn build
 
 artifacts:
   files:
-    - '**/*'
-  discard-paths: yes
+    - 'dist/**/*'    
+  base-directory: dist 
