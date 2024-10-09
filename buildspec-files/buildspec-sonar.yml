@@ -1,0 +1,50 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: 'us-east-1'
+  parameter-store:
+    SONAR_TOKEN: SONAR_TOKEN
+    HOST: HOST
+    Organization: Organization
+    Project: Project
+
+phases:
+  install:
+    commands:
+      - echo "Installing dependencies and tools for SonarCloud analysis..."
+      - apt-get update -y
+      - apt-get install -y curl jq
+      - npm install
+
+  pre_build:
+    commands:
+      - echo "Installing SonarScanner CLI..."
+      - export SONAR_SCANNER_VERSION=6.2.1.4610
+      - export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux-x64
+      - curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux-x64.zip
+      - unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/
+      - export PATH=$SONAR_SCANNER_HOME/bin:$PATH
+      - export SONAR_SCANNER_OPTS="-server"
+
+  build:
+    commands:
+      - echo "Running SonarCloud code quality checks..."
+      # - npm install -g sonarqube-scanner
+      - sonar-scanner \
+          -Dsonar.organization=$Organization \
+          -Dsonar.projectKey=$Project \
+          -Dsonar.sources=. \
+          -Dsonar.login=$SONAR_TOKEN
+          -Dsonar.host.url=$HOST \
+
+      - echo "Waiting for SonarCloud Quality Gate result..."
+      - sleep 5
+      - curl $HOST/api/qualitygates/project_status?projectKey=$Project >result.json
+      - cat result.json
+      - if [ $(jq -r '.projectStatus.status' result.json) = ERROR ] ; then $CODEBUILD_BUILD_SUCCEEDING -eq 0 ;fi
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: yes
