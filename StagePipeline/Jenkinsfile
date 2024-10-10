@@ -56,7 +56,6 @@ pipeline {
                         if (qualityGate.status != 'OK') {
                             error "SonarQube Quality Gate failed: ${qualityGate.status}"
                         }
-												// waitForQualityGate abortPipeline: true
                     }
                 }
             }
