@@ -1,90 +1,95 @@
 def COLOR_MAP = [
-	'SUCCESS': 'good',
-	'FAILURE': 'danger'
+    'SUCCESS': 'good',
+    'FAILURE': 'danger'
 ]
 
 pipeline {
-  agent any 
-	environment {
-		IMAGE_NAME = 'cjchika/frontend-react'
-		SONAR_TOKEN = "${env.SONAR_AUTH}"
-		SONAR_SCANNER = 'sonarscanner'
-		SONAR_HOST_URL = 'http://54.161.172.162'
-		SONAR_PROJECT_KEY = 'frontend-react'
-		REGISTRY = "${env.REGISTRY}"
-		registryCredential = "${env.REGISTRY_CRED}"
-		appRegistry = "${REGISTRY}/frontendreactimg"
-		jobappRegistry = "https://${REGISTRY}"
-	}
+    agent any 
+    environment {
+        IMAGE_NAME = 'cjchika/frontend-react'
+        SONAR_TOKEN = "${env.SONAR_AUTH}"
+        SONAR_SCANNER = 'sonarscanner'
+        SONAR_HOST_URL = 'http://54.161.172.162'
+        SONAR_PROJECT_KEY = 'frontend-react'
+        REGISTRY = "${env.REGISTRY}"
+        registryCredential = "${env.REGISTRY_CRED}"
+        appRegistry = "${REGISTRY}/frontendreactimg"
+        jobappRegistry = "https://${REGISTRY}"
+    }
 
-	stages {
-		stage('Clone Frontend Repository'){
-			steps{
-				git branch: 'jenkins-cicd', 
-				credentialsId: 'github-pat', 
-				url: 'https://github.com/cjchika/worrk-fe.git'
-			}
-		}
-		}
-		stage('Test SonarQube Scanner') {
-			steps {
-				sh 'which sonar-scanner'
-			}
-		}
-		stage('SonarQube Analysis'){
-			steps{
-				script{
-					withSonarQubeEnv('sonarserver'){
-						sh '''
-						sonar-scanner \
-						-Dsonar.projectKey=$SONAR_PROJECT_KEY \
-						-Dsonar.sources=. \
-						-Dsonar.host.url=$SONAR_HOST_URL \
-						-Dsonar.login=$SONAR_TOKEN
-					'''
-					}
-				}
-			}
-		}
-		stage('Check Quality Gate'){
-			steps{
-				script{
-					timeout(time: 30, unit: 'MINUTES') {
-						def qualityGate = waitForQualityGate() 
-						if(qualityGate.status != 'OK'){
-							error "SonarQube Quality Gate failed: ${qualityGate.status}"
-						}
-					}
-				}
-			}
-		}
-		stage('Build App Image'){
-			steps{
-				script {
-					dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", "./Dockerfile.prod")
-					}
-				}
-			}
-	
-		stage('Push Frontend Docker Image to ECR') {
-			steps{
-					script {
-						docker.withRegistry(jobappRegistry, registryCredential){
-							dockerImage.push("$BUILD_NUMBER")
-							dockerImage.push('latest')
-						}
-					}
-			}
-		}
-	post{
-		always {
-			cleanWs()
+    stages {
+        stage('Clone Frontend Repository') {
+            steps {
+                git branch: 'jenkins-cicd', 
+                    credentialsId: 'github-pat', 
+                    url: 'https://github.com/cjchika/worrk-fe.git'
+            }
+        }
 
-			echo 'Slack Notifications'
+        stage('Test SonarQube Scanner') {
+            steps {
+                sh 'which sonar-scanner'
+            }
+        }
 
-			slackSend channel: 'jenkinspipeline',
-				color: COLOR_MAP[currentBuild.currentResult],
-				message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_URL}"
-		}
-	}
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    withSonarQubeEnv('sonarserver') {
+                        sh '''
+                        sonar-scanner \
+                        -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.login=$SONAR_TOKEN
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Check Quality Gate') {
+            steps {
+                script {
+                    timeout(time: 30, unit: 'MINUTES') {
+                        def qualityGate = waitForQualityGate()
+                        if (qualityGate.status != 'OK') {
+                            error "SonarQube Quality Gate failed: ${qualityGate.status}"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build App Image') {
+            steps {
+                script {
+                    dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", "./Dockerfile.prod")
+                }
+            }
+        }
+
+        stage('Push Frontend Docker Image to ECR') {
+            steps {
+                script {
+                    docker.withRegistry(jobappRegistry, registryCredential) {
+                        dockerImage.push("$BUILD_NUMBER")
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+
+            echo 'Slack Notifications'
+
+            slackSend channel: 'jenkinspipeline',
+                color: COLOR_MAP[currentBuild.currentResult],
+                message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_URL}"
+        }
+    }
 }
