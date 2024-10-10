@@ -25,6 +25,7 @@ pipeline {
 				url: 'https://github.com/cjchika/worrk-fe.git'
 			}
 		}
+		}
 		stage('Test SonarQube Scanner') {
 			steps {
 				sh 'which sonar-scanner'
@@ -64,7 +65,7 @@ pipeline {
 					}
 				}
 			}
-		}
+	
 		stage('Push Frontend Docker Image to ECR') {
 			steps{
 					script {
@@ -85,6 +86,5 @@ pipeline {
 				color: COLOR_MAP[currentBuild.currentResult],
 				message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_URL}"
 		}
-		
 	}
 }
