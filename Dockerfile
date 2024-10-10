@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:18-alpine AS build 
 
 WORKDIR /app 
 
@@ -8,6 +8,14 @@ RUN yarn
 
 COPY . . 
 
-EXPOSE 80 
+RUN yarn build:prod 
 
-CMD [ "yarn", "dev" ]
+FROM nginx:alpine 
+
+RUN rm -rf /usr/share/nginx/html/* 
+
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD [ "nginx", "-g", "daemon off;" ]
