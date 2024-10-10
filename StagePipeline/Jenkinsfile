@@ -53,11 +53,11 @@ pipeline {
                 script {
                     timeout(time: 10, unit: 'MINUTES') {
                         def qualityGate = waitForQualityGate()
-                        // if (qualityGate.status != 'OK') {
-                        //     error "SonarQube Quality Gate failed: ${qualityGate.status}"
-                        // }
+                        if (qualityGate.status != 'OK') {
+                            error "SonarQube Quality Gate failed: ${qualityGate.status}"
+                        }
 												echo(qualityGate.status)
-												echo(message: 'Checking QG, Taking time...')
+												// echo(message: 'Checking QG, Taking time...')
                     }
                 }
             }
@@ -66,7 +66,7 @@ pipeline {
         stage('Build App Image') {
             steps {
                 script {
-                    dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", "/")
+                    dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", "")
                 }
             }
         }
