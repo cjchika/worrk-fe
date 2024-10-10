@@ -9,7 +9,7 @@ pipeline {
         IMAGE_NAME = 'cjchika/frontend-react'
         SONAR_TOKEN = "${env.SONAR_AUTH}"
         SONAR_SCANNER = 'sonarscanner'
-        SONAR_HOST_URL = 'http://54.161.172.162'
+        SONAR_HOST_URL = 'http://54.165.199.243'
         SONAR_PROJECT_KEY = 'frontend-react'
         REGISTRY = "${env.REGISTRY}"
         registryCredential = "${env.REGISTRY_CRED}"
@@ -51,12 +51,12 @@ pipeline {
         stage('Check Quality Gate') {
             steps {
                 script {
-                    timeout(time: 30, unit: 'MINUTES') {
-                        // def qualityGate = waitForQualityGate()
-                        // if (qualityGate.status != 'OK') {
-                        //     error "SonarQube Quality Gate failed: ${qualityGate.status}"
-                        // }
-												waitForQualityGate abortPipeline: true
+                    timeout(time: 10, unit: 'MINUTES') {
+                        def qualityGate = waitForQualityGate()
+                        if (qualityGate.status != 'OK') {
+                            error "SonarQube Quality Gate failed: ${qualityGate.status}"
+                        }
+												// waitForQualityGate abortPipeline: true
                     }
                 }
             }
