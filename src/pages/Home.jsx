@@ -28,13 +28,16 @@ const Home = () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch(`${APIURL}/jobs`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `http://backend-alb-1850666374.us-east-1.elb.amazonaws.com/api/v1/jobs`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!response.ok) {
           throw new Error("Failed to fetch jobs");
