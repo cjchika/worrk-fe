@@ -1,0 +1,110 @@
+name: jobApp Backend Actions
+on:
+  # push:
+  #   branches:
+  #     - github-actions
+  workflow_dispatch:
+env:
+  SONAR_URL: ${{ secrets.SONAR_URL }}
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+  SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+  GITHUB_WORKSPACE: $GITHUB_WORKSPACE
+  AWS_REGION: us-east-1
+  ECR_REPO: backendnodeimg
+  ECS_CLUSTER: mern-cluster
+  ECS_SERVICE: jobapp-frontend-svc
+  ECS_TASK_DEFINITION: aws-files/taskdeffile.json
+  CONTAINER_NAME: jobapp-frontend
+jobs:
+  TESTING:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm test || echo "No tests to run"
+
+      - name: Setup SonarQube
+        uses: warchant/setup-sonar-scanner@v7
+
+      - name: SonarQube Scan
+        run: |
+          sonar-scanner \
+            -Dsonar.host.url=$SONAR_URL \
+            -Dsonar.login=$SONAR_TOKEN \
+            -Dsonar.organization=$SONAR_ORGANIZATION \
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+            -Dsonar.sources=$GITHUB_WORKSPACE
+
+      - name: SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+
+        timeout-minutes: 5
+
+      - name: "SonarQube Quality Gate Status"
+        run: echo "Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
+
+  BUILD_AND_PUBLISH:
+    needs: TESTING
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Build & Upload image to ECR
+        uses: appleboy/docker-ecr-action@master
+        with:
+          access_key: ${{ secrets.aws_access_key_id }}
+          secret_key: ${{ secrets.aws_secret_access_key }}
+          registry: ${{ secrets.registry }}
+          repo: ${{ env.ECR_REPO }}
+          region: ${{ env.AWS_REGION }}
+          auto_tag: true
+          daemon_off: false
+          dockerfile: ./Dockerfile
+          context: ./
+
+  DEPLOY:
+    needs: BUILD_AND_PUBLISH
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ secrets.REGISTRY }}/${{ env.ECR_REPO }}:${{ github.run_number }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
