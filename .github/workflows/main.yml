@@ -1,4 +1,4 @@
-name: jobApp Backend Actions
+name: jobApp Frontend Actions
 on:
   # push:
   #   branches:
@@ -11,7 +11,7 @@ env:
   SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
   GITHUB_WORKSPACE: $GITHUB_WORKSPACE
   AWS_REGION: us-east-1
-  ECR_REPO: backendnodeimg
+  ECR_REPO: frontendreactimg
   ECS_CLUSTER: mern-cluster
   ECS_SERVICE: jobapp-frontend-svc
   ECS_TASK_DEFINITION: aws-files/taskdeffile.json
